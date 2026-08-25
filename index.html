@@ -430,6 +430,18 @@
         <label for="garden-name">Nome do Jardim</label>
         <input type="text" id="garden-name" placeholder="Ex: Faculdade, Concurso, Vida Pessoal" />
       </div>
+      <div class="form-group">
+        <label for="garden-cycle">Ciclo de Revisão (Definição Permanente)</label>
+        <select id="garden-cycle">
+          <option value="standard">Padrão (+1, +7, +15, +30, +30...)</option>
+          <option value="short">Curto/Recorrente (+1, +7, +15, +7, +1, +7...)</option>
+          <option value="frequent">Intensivo (+1, +3, +7, +15, +1, +3...)</option>
+          <option value="weekly">Semanal Contínuo (+7, +7, +7, +7...)</option>
+        </select>
+        <small style="color: var(--subtext); margin-top: 5px; font-size: 0.75rem;">
+          🔒 O ciclo de revisão é fixo e não poderá ser alterado após a criação deste jardim.
+        </small>
+      </div>
       <div class="modal-buttons">
         <button class="btn btn-secondary" onclick="closeModal('create-garden-modal')">Cancelar</button>
         <button class="btn" onclick="createGarden()">Criar Jardim</button>
@@ -478,7 +490,7 @@
         <p><strong>Saúde atual:</strong> <span id="care-health">100%</span></p>
         <p><strong>Progresso / XP:</strong> <span id="care-xp">0%</span></p>
         <p><strong>Estágio:</strong> <span id="care-stage">Semente</span></p>
-        <p><strong>Tipo do próximo cuidado:</strong> <span id="care-next-type">Diário</span></p>
+        <p><strong>Próxima revisão:</strong> <span id="care-next-type">Diário</span></p>
         <p><strong>Próxima data ideal:</strong> <span id="care-next">Em 1 dia</span></p>
       </div>
 
@@ -516,18 +528,60 @@
     };
 
     const XP_RATES = {
-      sunflower: { daily: 5,    weekly: 25,   biweekly: 50,  monthly: 100 },
-      rose:      { daily: 2.5,  weekly: 12.5, biweekly: 25,  monthly: 50  },
-      flower:    { daily: 1,    weekly: 5,    biweekly: 10,  monthly: 20  },
-      cactus:    { daily: 0.75, weekly: 3.5,  biweekly: 7.5, monthly: 15  },
-      tree:      { daily: 0.5,  weekly: 2.5,  biweekly: 5,   monthly: 10  }
+      sunflower: { stage0: 5,   stage1: 25,  stage2: 50,  stage3: 100 },
+      rose:      { stage0: 2.5, stage1: 12.5, stage2: 25, stage3: 50  },
+      flower:    { stage0: 1,   stage1: 5,   stage2: 10,  stage3: 20  },
+      cactus:    { stage0: 0.75, stage1: 3.5, stage2: 7.5, stage3: 15  },
+      tree:      { stage0: 0.5, stage1: 2.5, stage2: 5,   stage3: 10  }
     };
 
-    function getNextCareStage(careCount) {
-      if (careCount === 0) return { type: 'daily', label: 'Diário (1 dia)', intervalDays: 1 };
-      if (careCount === 1) return { type: 'weekly', label: 'Semanal (7 dias)', intervalDays: 7 };
-      if (careCount === 2) return { type: 'biweekly', label: 'Quinzenal (15 dias)', intervalDays: 15 };
-      return { type: 'monthly', label: 'Mensal (30 dias)', intervalDays: 30 };
+    const CYCLE_LABELS = {
+      standard: '+1/+7/+15/+30d...',
+      short: '+1/+7/+15/+7d...',
+      frequent: '+1/+3/+7/+15d...',
+      weekly: '+7/+7/+7/+7d...'
+    };
+
+    /* LÓGICA DE SEQUÊNCIA DE REVISÃO CUSTOMIZADA */
+    function getNextCareStage(careCount, cycleType = 'standard') {
+      if (cycleType === 'short') {
+        // Sequência: +1, +7, +15, +7 em loop contínuo
+        const step = careCount % 4;
+        const shortSteps = [
+          { label: 'Inicial (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
+          { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage1' },
+          { label: 'Quinzenal (+15 dias)', intervalDays: 15, xpKey: 'stage2' },
+          { label: 'Semanal Recorrente (+7 dias)', intervalDays: 7, xpKey: 'stage1' }
+        ];
+        return shortSteps[step];
+      } 
+      
+      if (cycleType === 'frequent') {
+        // Sequência: +1, +3, +7, +15 em loop contínuo
+        const step = careCount % 4;
+        const frequentSteps = [
+          { label: 'Inicial (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
+          { label: 'Rápido (+3 dias)', intervalDays: 3, xpKey: 'stage1' },
+          { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage2' },
+          { label: 'Quinzenal (+15 dias)', intervalDays: 15, xpKey: 'stage3' }
+        ];
+        return frequentSteps[step];
+      } 
+      
+      if (cycleType === 'weekly') {
+        // Repete sempre +7
+        return { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage1' };
+      }
+
+      // Padrão (standard): +1, +7, +15, +30 (e repete +30 no final)
+      const standardSteps = [
+        { label: 'Diário (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
+        { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage1' },
+        { label: 'Quinzenal (+15 dias)', intervalDays: 15, xpKey: 'stage2' },
+        { label: 'Mensal (+30 dias)', intervalDays: 30, xpKey: 'stage3' }
+      ];
+      const stepIndex = Math.min(careCount, standardSteps.length - 1);
+      return standardSteps[stepIndex];
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -537,6 +591,7 @@
         gardens.push({
           id: 'default_garden',
           name: 'Meu Jardim Principal',
+          reviewCycle: 'standard',
           topics: oldTopics
         });
         localStorage.removeItem('garden_topics');
@@ -634,6 +689,7 @@
       }
 
       gardens.forEach(g => {
+        const cycleText = CYCLE_LABELS[g.reviewCycle || 'standard'];
         const card = document.createElement('div');
         card.className = 'garden-card';
 
@@ -644,7 +700,8 @@
               <div class="garden-card-title">${escapeHtml(g.name)}</div>
             </div>
             <div class="garden-card-stats">
-              🌾 ${g.topics.length} planta(s) cultivada(s)
+              🌾 ${g.topics.length} planta(s)<br>
+              🔄 Ciclo: <strong>${cycleText}</strong>
             </div>
           </div>
           <div class="garden-card-actions">
@@ -661,12 +718,15 @@
 
     function openCreateGardenModal() {
       document.getElementById('garden-name').value = '';
+      document.getElementById('garden-cycle').value = 'standard';
       document.getElementById('create-garden-modal').classList.add('active');
     }
 
     function createGarden() {
       const input = document.getElementById('garden-name');
+      const cycleSelect = document.getElementById('garden-cycle');
       const name = input.value.trim();
+      
       if (!name) {
         alert('Por favor, digite um nome para o jardim.');
         return;
@@ -675,6 +735,7 @@
       const newGarden = {
         id: Date.now().toString(),
         name: name,
+        reviewCycle: cycleSelect.value,
         topics: []
       };
 
@@ -789,8 +850,9 @@
       if (!garden) return;
 
       const now = new Date();
+      const firstStage = getNextCareStage(0, garden.reviewCycle);
       const nextReview = new Date(now);
-      nextReview.setDate(nextReview.getDate() + 1);
+      nextReview.setDate(nextReview.getDate() + firstStage.intervalDays);
 
       const newTopic = {
         id: Date.now().toString(),
@@ -822,8 +884,8 @@
       const topic = garden.topics.find(t => t.id === id);
       if (!topic) return;
 
-      const stageInfo = getNextCareStage(topic.careCount);
-      const xpGain = XP_RATES[topic.species][stageInfo.type];
+      const stageInfo = getNextCareStage(topic.careCount, garden.reviewCycle);
+      const xpGain = XP_RATES[topic.species][stageInfo.xpKey];
 
       document.getElementById('care-title').innerText = topic.title;
       document.getElementById('care-discipline').innerText = topic.discipline;
@@ -879,15 +941,15 @@
       if (!topic) return;
 
       const now = new Date();
-      const stageInfo = getNextCareStage(topic.careCount);
-      const xpGain = XP_RATES[topic.species][stageInfo.type];
+      const currentStageInfo = getNextCareStage(topic.careCount, garden.reviewCycle);
+      const xpGain = XP_RATES[topic.species][currentStageInfo.xpKey];
 
       topic.health = Math.min(100, topic.health + 10);
       topic.xp = Math.min(100, (topic.xp || 0) + xpGain);
       topic.careCount += 1;
       topic.lastCare = now.toISOString();
 
-      const nextStageInfo = getNextCareStage(topic.careCount);
+      const nextStageInfo = getNextCareStage(topic.careCount, garden.reviewCycle);
       const nextReviewDate = new Date(now);
       nextReviewDate.setDate(nextReviewDate.getDate() + nextStageInfo.intervalDays);
       topic.nextReview = nextReviewDate.toISOString();
