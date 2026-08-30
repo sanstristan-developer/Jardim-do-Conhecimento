@@ -634,22 +634,63 @@
     }
 
     function calculateDecayAll() {
-      const now = new Date();
-      gardens.forEach(g => {
-        g.topics.forEach(topic => {
-          const nextReviewDate = new Date(topic.nextReview);
-          if (now > nextReviewDate) {
-            const diffHours = (now - nextReviewDate) / (1000 * 60 * 60);
-            const daysOverdue = Math.floor(diffHours / 24);
-            if (daysOverdue > 0) {
-              const decay = daysOverdue * 10;
-              topic.health = Math.max(0, topic.health - decay);
-            }
-          }
-        });
-      });
-      saveStorage();
-    }
+  const now = new Date();
+
+  // Compara somente as datas, ignorando horas
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  gardens.forEach(g => {
+    g.topics.forEach(topic => {
+
+      const reviewDate = new Date(topic.nextReview);
+
+      const targetDate = new Date(
+        reviewDate.getFullYear(),
+        reviewDate.getMonth(),
+        reviewDate.getDate()
+      );
+
+      // Se ainda não está atrasada
+      if (today <= targetDate) {
+        topic.daysOverdueApplied = 0;
+        return;
+      }
+
+      // Quantos dias está atrasada
+      const diffTime = today - targetDate;
+      const daysOverdue = Math.floor(
+        diffTime / (1000 * 60 * 60 * 24)
+      );
+
+      // Compatibilidade com plantas criadas antes desta atualização
+      if (typeof topic.daysOverdueApplied !== 'number') {
+        topic.daysOverdueApplied = 0;
+      }
+
+      // Apenas os NOVOS dias de atraso geram perda
+      const newOverdueDays =
+        daysOverdue - topic.daysOverdueApplied;
+
+      if (newOverdueDays > 0) {
+        const decay = newOverdueDays * 10;
+
+        topic.health = Math.max(
+          0,
+          topic.health - decay
+        );
+
+        // Registra que esses dias já foram contabilizados
+        topic.daysOverdueApplied = daysOverdue;
+      }
+    });
+  });
+
+  saveStorage();
+}
 
     /* --- NAVEGAÇÃO ENTRE TELAS --- */
     function showHomeScreen() {
@@ -1030,5 +1071,6 @@
   </script>
 </body>
 </html>
+
 
 
