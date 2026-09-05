@@ -79,6 +79,7 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .btn {
@@ -402,6 +403,9 @@
     <h1 id="app-title">🏡 Meus Jardins</h1>
     <div class="header-actions">
       <button class="btn btn-secondary btn-icon" id="theme-toggle" onclick="toggleTheme()" title="Alternar Modo Noturno">🌙</button>
+      <button class="btn btn-secondary" onclick="exportData()" title="Baixar Backup">📥 Exportar</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" title="Carregar Backup">📤 Importar</button>
+      <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)" />
       <button class="btn btn-secondary" onclick="requestNotificationPermission()">🔔 Notificações</button>
       <button class="btn btn-secondary" id="btn-back" onclick="showHomeScreen()" style="display: none;">⬅️ Voltar</button>
       <button class="btn" id="btn-primary-action" onclick="openCreateGardenModal()">＋ Novo Jardim</button>
@@ -555,7 +559,6 @@
     /* LÓGICA DE SEQUÊNCIA DE REVISÃO CUSTOMIZADA */
     function getNextCareStage(careCount, cycleType = 'standard') {
       if (cycleType === 'short') {
-        // Sequência: +1, +7, +15, +7 em loop contínuo
         const step = careCount % 4;
         const shortSteps = [
           { label: 'Inicial (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
@@ -567,7 +570,6 @@
       } 
       
       if (cycleType === 'frequent') {
-        // Sequência: +1, +3, +7, +15 em loop contínuo
         const step = careCount % 4;
         const frequentSteps = [
           { label: 'Inicial (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
@@ -579,11 +581,9 @@
       } 
       
       if (cycleType === 'weekly') {
-        // Repete sempre +7
         return { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage1' };
       }
 
-      // Padrão (standard): +1, +7, +15, +30 (e repete +30 no final)
       const standardSteps = [
         { label: 'Diário (+1 dia)', intervalDays: 1, xpKey: 'stage0' },
         { label: 'Semanal (+7 dias)', intervalDays: 7, xpKey: 'stage1' },
@@ -595,7 +595,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Migração de versão antiga do localStorage (caso exista)
       const oldTopics = JSON.parse(localStorage.getItem('garden_topics'));
       if (oldTopics && oldTopics.length > 0 && gardens.length === 0) {
         gardens.push({
@@ -619,6 +618,52 @@
       localStorage.setItem('gardens_data', JSON.stringify(gardens));
     }
 
+    /* EXPORTAR E IMPORTAR DADOS (Sincronização Local <-> GitHub) */
+    function exportData() {
+      if (gardens.length === 0) {
+        alert('Não há dados de jardim para exportar.');
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gardens, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `jardim_backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedGardens = JSON.parse(e.target.result);
+          if (Array.isArray(importedGardens)) {
+            if (confirm('Isso vai substituir os dados locais atuais pelos dados do arquivo. Deseja continuar?')) {
+              gardens = importedGardens;
+              saveStorage();
+              calculateDecayAll();
+              if (currentGardenId) {
+                renderGardenPlants();
+              } else {
+                renderHomeScreen();
+              }
+              alert('Dados importados com sucesso!');
+            }
+          } else {
+            alert('Formato de arquivo inválido.');
+          }
+        } catch (err) {
+          alert('Erro ao ler o arquivo JSON: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = ''; // reseta o input
+    }
+
     function initTheme() {
       const isDark = localStorage.getItem('garden_theme') === 'dark';
       if (isDark) {
@@ -634,63 +679,38 @@
     }
 
     function calculateDecayAll() {
-  const now = new Date();
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Compara somente as datas, ignorando horas
-  const today = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
+      gardens.forEach(g => {
+        g.topics.forEach(topic => {
+          const reviewDate = new Date(topic.nextReview);
+          const targetDate = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
 
-  gardens.forEach(g => {
-    g.topics.forEach(topic => {
+          if (today <= targetDate) {
+            topic.daysOverdueApplied = 0;
+            return;
+          }
 
-      const reviewDate = new Date(topic.nextReview);
+          const diffTime = today - targetDate;
+          const daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-      const targetDate = new Date(
-        reviewDate.getFullYear(),
-        reviewDate.getMonth(),
-        reviewDate.getDate()
-      );
+          if (typeof topic.daysOverdueApplied !== 'number') {
+            topic.daysOverdueApplied = 0;
+          }
 
-      // Se ainda não está atrasada
-      if (today <= targetDate) {
-        topic.daysOverdueApplied = 0;
-        return;
-      }
+          const newOverdueDays = daysOverdue - topic.daysOverdueApplied;
 
-      // Quantos dias está atrasada
-      const diffTime = today - targetDate;
-      const daysOverdue = Math.floor(
-        diffTime / (1000 * 60 * 60 * 24)
-      );
+          if (newOverdueDays > 0) {
+            const decay = newOverdueDays * 10;
+            topic.health = Math.max(0, topic.health - decay);
+            topic.daysOverdueApplied = daysOverdue;
+          }
+        });
+      });
 
-      // Compatibilidade com plantas criadas antes desta atualização
-      if (typeof topic.daysOverdueApplied !== 'number') {
-        topic.daysOverdueApplied = 0;
-      }
-
-      // Apenas os NOVOS dias de atraso geram perda
-      const newOverdueDays =
-        daysOverdue - topic.daysOverdueApplied;
-
-      if (newOverdueDays > 0) {
-        const decay = newOverdueDays * 10;
-
-        topic.health = Math.max(
-          0,
-          topic.health - decay
-        );
-
-        // Registra que esses dias já foram contabilizados
-        topic.daysOverdueApplied = daysOverdue;
-      }
-    });
-  });
-
-  saveStorage();
-}
+      saveStorage();
+    }
 
     /* --- NAVEGAÇÃO ENTRE TELAS --- */
     function showHomeScreen() {
@@ -1071,6 +1091,3 @@
   </script>
 </body>
 </html>
-
-
-
