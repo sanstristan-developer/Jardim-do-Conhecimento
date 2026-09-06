@@ -527,6 +527,104 @@
     .btn-card.danger {
       background: var(--danger);
     }
+    
+    /* ==========================================
+   OTIMIZAÇÕES DE RESPONSIVIDADE MOBILE 
+   ========================================== */
+
+/* Ajustes gerais de layout para telas pequenas (smartphones) */
+@media (max-width: 600px) {
+  body {
+    padding: 10px; /* Reduz o espaçamento lateral para aproveitar melhor a tela */
+  }
+
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  h1#app-title {
+    text-align: center;
+    font-size: 1.5rem;
+  }
+
+  .header-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Faz os botões do topo se ajustarem em linhas fluidas */
+  .header-actions .btn {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 0.85rem;
+  }
+
+  .header-actions .btn-icon {
+    flex: 0 0 auto; /* Mantém o botão circular de tema com tamanho fixo */
+  }
+
+  /* Ajuste no grid de jardins da tela inicial */
+  .gardens-grid {
+    grid-template-columns: 1fr; /* Exibe 1 card por linha em telas pequenas */
+  }
+
+  /* Ajuste no grid de plantas dentro do jardim */
+  .garden-container {
+    padding: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Reduz o tamanho mínimo dos cards */
+    gap: 10px;
+  }
+
+  .plant-card {
+    padding: 10px;
+  }
+
+  .plant-icon {
+    font-size: 2.3rem; /* Reduz o ícone para caber em telas menores */
+  }
+
+  .plant-title {
+    font-size: 0.85rem;
+  }
+
+  /* Ajuste de modais para exibição mobile */
+  .modal {
+    width: 95vw;
+    padding: 18px;
+    max-height: 85vh; /* Evita ultrapassar o topo e fundo no navegador mobile */
+  }
+
+  .modal h2 {
+    font-size: 1.3rem;
+  }
+
+  .modal-buttons {
+    flex-direction: column-reverse; /* Empilha os botões facilitando a navegação polegar */
+    gap: 8px;
+  }
+
+  .modal-buttons .btn {
+    width: 100%;
+  }
+
+  /* Ajuste de Botões de Ação dentro do Modal da Planta */
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Otimizações nos Flashcards */
+  .flashcard-inner {
+    height: 140px; /* Garante altura suficiente para textos mais longos */
+  }
+
+  .flashcard-text-content {
+    font-size: 0.8rem;
+  }
+}
+    
   </style>
 </head>
 <body>
