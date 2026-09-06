@@ -301,7 +301,9 @@
       padding: 25px;
       border-radius: 16px;
       width: 90%;
-      max-width: 450px;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
       transition: background 0.3s, color 0.3s;
     }
@@ -323,13 +325,13 @@
       margin-bottom: 5px;
     }
 
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
       padding: 10px;
       border: 1px solid var(--bar-bg);
       background-color: var(--card-bg);
       color: var(--text);
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
 
     .info-box {
@@ -394,6 +396,136 @@
       justify-content: flex-end;
       gap: 10px;
       margin-top: 15px;
+    }
+
+    /* ESTILOS DE FLASHCARDS */
+    .flashcards-container {
+      margin-top: 20px;
+      border-top: 1px solid var(--bar-bg);
+      padding-top: 15px;
+      text-align: left;
+    }
+
+    .flashcards-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .flashcards-scroll-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .flashcard-wrapper {
+      perspective: 1000px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 120px;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .flashcard-wrapper.flipped .flashcard-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flashcard-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      background: var(--info-bg);
+      border: 1px solid var(--bar-bg);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    .flashcard-wrapper:hover .flashcard-face {
+      border-color: var(--primary);
+    }
+
+    .flashcard-face-back {
+      transform: rotateY(180deg);
+      background: var(--card-bg);
+      border-color: var(--primary);
+    }
+
+    .flashcard-label {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-weight: bold;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .flashcard-text-content {
+      font-size: 0.85rem;
+      color: var(--text);
+      word-break: break-word;
+      line-height: 1.3;
+      margin: 4px 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      overflow-y: auto;
+    }
+
+    .flashcard-hint {
+      font-size: 0.7rem;
+      color: var(--subtext);
+      font-style: italic;
+      text-align: right;
+    }
+
+    .flashcard-editor-box {
+      background: var(--info-bg);
+      border: 1px dashed var(--primary);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .btn-card {
+      background: var(--btn-secondary-bg);
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-card.primary {
+      background: var(--primary);
+    }
+
+    .btn-card.danger {
+      background: var(--danger);
     }
   </style>
 </head>
@@ -521,6 +653,16 @@
         </button>
       </div>
 
+      <!-- SEÇÃO DE FLASHCARDS INTEGRADA -->
+      <div class="flashcards-container">
+        <div class="flashcards-header">
+          <h3 style="font-size: 1rem; color: var(--primary);">🎴 Flashcards <span id="card-counter" style="font-size:0.8rem; color:var(--subtext)">(0)</span></h3>
+          <button class="btn-card primary" id="btn-novo-card" onclick="iniciarCriacaoFlashcard()">+ Novo Flashcard</button>
+        </div>
+        <div id="editor-container" style="display: none;"></div>
+        <div class="flashcards-scroll-container" id="flashcards-scroll-container"></div>
+      </div>
+
       <div class="modal-buttons" style="justify-content: space-between; margin-top: 20px;">
         <button class="btn btn-danger" onclick="deleteTopic()">Excluir Planta</button>
         <button class="btn btn-secondary" onclick="closeModal('care-modal')">Fechar</button>
@@ -532,6 +674,7 @@
     let gardens = JSON.parse(localStorage.getItem('gardens_data')) || [];
     let currentGardenId = null;
     let selectedTopicId = null;
+    let modoCriacaoFlashcard = false;
 
     const SPECIES_LOOKUP = {
       sunflower: { name: 'Girassol', seed: '🌱', small: '🌱', medium: '🌿', large: '🌻', bloom: '🌻✨', wilted: '🥀' },
@@ -715,6 +858,7 @@
     /* --- NAVEGAÇÃO ENTRE TELAS --- */
     function showHomeScreen() {
       currentGardenId = null;
+      selectedTopicId = null;
       document.getElementById('home-view').classList.add('active');
       document.getElementById('garden-view').classList.remove('active');
       
@@ -875,7 +1019,7 @@
           <div class="plant-title">${escapeHtml(topic.title)}</div>
           <div class="plant-discipline">${escapeHtml(topic.discipline)}</div>
           
-          <span class="bar-label">Saúde: ${topic.health}%</span>
+          <span class="bar-label">Saúde: ${Math.round(topic.health)}%</span>
           <div class="health-bar-container">
             <div class="health-bar" style="width: ${topic.health}%; background-color: ${topic.health < 30 ? 'var(--danger)' : 'var(--primary)'}"></div>
           </div>
@@ -935,7 +1079,8 @@
         careCount: 0,
         createdAt: now.toISOString(),
         lastCare: null,
-        nextReview: nextReview.toISOString()
+        nextReview: nextReview.toISOString(),
+        flashcards: []
       };
 
       garden.topics.push(newTopic);
@@ -949,11 +1094,14 @@
 
     function openCareModal(id) {
       selectedTopicId = id;
+      modoCriacaoFlashcard = false;
       const garden = gardens.find(g => g.id === currentGardenId);
       if (!garden) return;
 
       const topic = garden.topics.find(t => t.id === id);
       if (!topic) return;
+
+      if (!topic.flashcards) topic.flashcards = [];
 
       const stageInfo = getNextCareStage(topic.careCount, garden.reviewCycle);
       const xpGain = XP_RATES[topic.species][stageInfo.xpKey];
@@ -1001,6 +1149,7 @@
         actionBtn.disabled = false;
       }
 
+      renderFlashcards();
       document.getElementById('care-modal').classList.add('active');
     }
 
@@ -1027,7 +1176,7 @@
 
       saveStorage();
       renderGardenPlants();
-      closeModal('care-modal');
+      openCareModal(topic.id);
     }
 
     function deleteTopic() {
@@ -1042,12 +1191,171 @@
       }
     }
 
+    /* --- LÓGICA DE FLASHCARDS INTEGRADA --- */
+    function renderFlashcards() {
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden ? garden.topics.find(t => t.id === selectedTopicId) : null;
+      if (!topic) return;
+
+      const cards = topic.flashcards || [];
+      document.getElementById('card-counter').innerText = `(${cards.length})`;
+
+      const scrollContainer = document.getElementById('flashcards-scroll-container');
+      const editorContainer = document.getElementById('editor-container');
+
+      if (!modoCriacaoFlashcard) {
+        editorContainer.style.display = 'none';
+        editorContainer.innerHTML = '';
+      }
+
+      if (cards.length === 0 && !modoCriacaoFlashcard) {
+        scrollContainer.innerHTML = `<p style="text-align: center; color: var(--subtext); font-size: 0.8rem; padding: 10px;">Nenhum flashcard adicionado ainda.</p>`;
+        return;
+      }
+
+      scrollContainer.innerHTML = '';
+      cards.forEach((card, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flashcard-wrapper';
+
+        wrapper.innerHTML = `
+          <div class="flashcard-inner" onclick="this.parentElement.classList.toggle('flipped')">
+            <div class="flashcard-face">
+              <div>
+                <div class="flashcard-label">
+                  <span>PERGUNTA #${index + 1}</span>
+                  <div>
+                    <button class="btn-card" style="padding: 2px 5px;" onclick="event.stopPropagation(); editarFlashcard(${index})">✏️</button>
+                    <button class="btn-card danger" style="padding: 2px 5px;" onclick="event.stopPropagation(); excluirFlashcard(${index})">🗑️</button>
+                  </div>
+                </div>
+                <div class="flashcard-text-content">${escapeHtml(card.pergunta)}</div>
+              </div>
+              <div class="flashcard-hint">Clique para girar 🔄</div>
+            </div>
+            <div class="flashcard-face flashcard-face-back">
+              <div>
+                <div class="flashcard-label">RESPOSTA</div>
+                <div class="flashcard-text-content">${escapeHtml(card.resposta)}</div>
+              </div>
+              <div class="flashcard-hint">Clique para voltar 🔄</div>
+            </div>
+          </div>
+        `;
+        scrollContainer.appendChild(wrapper);
+      });
+    }
+
+    function iniciarCriacaoFlashcard() {
+      modoCriacaoFlashcard = true;
+      const editor = document.getElementById('editor-container');
+      editor.style.display = 'block';
+      editor.innerHTML = `
+        <div class="flashcard-editor-box">
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 0.75rem;">Pergunta / Frente:</label>
+            <textarea id="card-front-input" rows="2" placeholder="Ex: Qual a fórmula de Bhaskara?"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 0.75rem;">Resposta / Verso:</label>
+            <textarea id="card-back-input" rows="2" placeholder="Ex: x = (-b ± √(Δ)) / 2a"></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn-card" onclick="cancelarEditorFlashcard()">Cancelar</button>
+            <button class="btn-card primary" onclick="salvarNovoFlashcard()">Salvar Card</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('card-front-input').focus();
+    }
+
+    function salvarNovoFlashcard() {
+      const pergunta = document.getElementById('card-front-input').value.trim();
+      const resposta = document.getElementById('card-back-input').value.trim();
+
+      if (!pergunta || !resposta) {
+        alert("Preencha a pergunta e a resposta do flashcard.");
+        return;
+      }
+
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden.topics.find(t => t.id === selectedTopicId);
+
+      if (!topic.flashcards) topic.flashcards = [];
+      topic.flashcards.push({ pergunta, resposta });
+
+      saveStorage();
+      modoCriacaoFlashcard = false;
+      renderFlashcards();
+    }
+
+    function editarFlashcard(index) {
+      modoCriacaoFlashcard = true;
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden.topics.find(t => t.id === selectedTopicId);
+      const card = topic.flashcards[index];
+
+      const editor = document.getElementById('editor-container');
+      editor.style.display = 'block';
+      editor.innerHTML = `
+        <div class="flashcard-editor-box">
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 0.75rem;">Editar Pergunta:</label>
+            <textarea id="card-front-input" rows="2">${escapeHtml(card.pergunta)}</textarea>
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 0.75rem;">Editar Resposta:</label>
+            <textarea id="card-back-input" rows="2">${escapeHtml(card.resposta)}</textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn-card" onclick="cancelarEditorFlashcard()">Cancelar</button>
+            <button class="btn-card primary" onclick="salvarEdicaoFlashcard(${index})">Atualizar Card</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function salvarEdicaoFlashcard(index) {
+      const pergunta = document.getElementById('card-front-input').value.trim();
+      const resposta = document.getElementById('card-back-input').value.trim();
+
+      if (!pergunta || !resposta) {
+        alert("Preencha a pergunta e a resposta do flashcard.");
+        return;
+      }
+
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden.topics.find(t => t.id === selectedTopicId);
+
+      topic.flashcards[index] = { pergunta, resposta };
+
+      saveStorage();
+      modoCriacaoFlashcard = false;
+      renderFlashcards();
+    }
+
+    function excluirFlashcard(index) {
+      if (confirm("Deseja excluir este flashcard?")) {
+        const garden = gardens.find(g => g.id === currentGardenId);
+        const topic = garden.topics.find(t => t.id === selectedTopicId);
+        topic.flashcards.splice(index, 1);
+        saveStorage();
+        renderFlashcards();
+      }
+    }
+
+    function cancelarEditorFlashcard() {
+      modoCriacaoFlashcard = false;
+      renderFlashcards();
+    }
+
     /* --- UTILITÁRIOS --- */
     function closeModal(modalId) {
       document.getElementById(modalId).classList.remove('active');
     }
 
     function escapeHtml(text) {
+      if (!text) return '';
       return text.replace(/[&<>"']/g, function(m) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
       });
