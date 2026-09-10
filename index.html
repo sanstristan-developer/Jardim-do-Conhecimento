@@ -411,6 +411,14 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .flashcards-actions-group {
+      display: flex;
+      gap: 5px;
+      align-items: center;
     }
 
     .flashcards-scroll-container {
@@ -532,98 +540,91 @@
    OTIMIZAÇÕES DE RESPONSIVIDADE MOBILE 
    ========================================== */
 
-/* Ajustes gerais de layout para telas pequenas (smartphones) */
-@media (max-width: 600px) {
-  body {
-    padding: 10px; /* Reduz o espaçamento lateral para aproveitar melhor a tela */
-  }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
 
-  header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
+      header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
 
-  h1#app-title {
-    text-align: center;
-    font-size: 1.5rem;
-  }
+      h1#app-title {
+        text-align: center;
+        font-size: 1.5rem;
+      }
 
-  .header-actions {
-    justify-content: center;
-    width: 100%;
-  }
+      .header-actions {
+        justify-content: center;
+        width: 100%;
+      }
 
-  /* Faz os botões do topo se ajustarem em linhas fluidas */
-  .header-actions .btn {
-    flex: 1 1 auto;
-    text-align: center;
-    padding: 10px 8px;
-    font-size: 0.85rem;
-  }
+      .header-actions .btn {
+        flex: 1 1 auto;
+        text-align: center;
+        padding: 10px 8px;
+        font-size: 0.85rem;
+      }
 
-  .header-actions .btn-icon {
-    flex: 0 0 auto; /* Mantém o botão circular de tema com tamanho fixo */
-  }
+      .header-actions .btn-icon {
+        flex: 0 0 auto;
+      }
 
-  /* Ajuste no grid de jardins da tela inicial */
-  .gardens-grid {
-    grid-template-columns: 1fr; /* Exibe 1 card por linha em telas pequenas */
-  }
+      .gardens-grid {
+        grid-template-columns: 1fr;
+      }
 
-  /* Ajuste no grid de plantas dentro do jardim */
-  .garden-container {
-    padding: 12px;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Reduz o tamanho mínimo dos cards */
-    gap: 10px;
-  }
+      .garden-container {
+        padding: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+      }
 
-  .plant-card {
-    padding: 10px;
-  }
+      .plant-card {
+        padding: 10px;
+      }
 
-  .plant-icon {
-    font-size: 2.3rem; /* Reduz o ícone para caber em telas menores */
-  }
+      .plant-icon {
+        font-size: 2.3rem;
+      }
 
-  .plant-title {
-    font-size: 0.85rem;
-  }
+      .plant-title {
+        font-size: 0.85rem;
+      }
 
-  /* Ajuste de modais para exibição mobile */
-  .modal {
-    width: 95vw;
-    padding: 18px;
-    max-height: 85vh; /* Evita ultrapassar o topo e fundo no navegador mobile */
-  }
+      .modal {
+        width: 95vw;
+        padding: 18px;
+        max-height: 85vh;
+      }
 
-  .modal h2 {
-    font-size: 1.3rem;
-  }
+      .modal h2 {
+        font-size: 1.3rem;
+      }
 
-  .modal-buttons {
-    flex-direction: column-reverse; /* Empilha os botões facilitando a navegação polegar */
-    gap: 8px;
-  }
+      .modal-buttons {
+        flex-direction: column-reverse;
+        gap: 8px;
+      }
 
-  .modal-buttons .btn {
-    width: 100%;
-  }
+      .modal-buttons .btn {
+        width: 100%;
+      }
 
-  /* Ajuste de Botões de Ação dentro do Modal da Planta */
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
+      .actions-grid {
+        grid-template-columns: 1fr;
+      }
 
-  /* Otimizações nos Flashcards */
-  .flashcard-inner {
-    height: 140px; /* Garante altura suficiente para textos mais longos */
-  }
+      .flashcard-inner {
+        height: 140px;
+      }
 
-  .flashcard-text-content {
-    font-size: 0.8rem;
-  }
-}
+      .flashcard-text-content {
+        font-size: 0.8rem;
+      }
+    }
     
   </style>
 </head>
@@ -633,8 +634,8 @@
     <h1 id="app-title">🏡 Meus Jardins</h1>
     <div class="header-actions">
       <button class="btn btn-secondary btn-icon" id="theme-toggle" onclick="toggleTheme()" title="Alternar Modo Noturno">🌙</button>
-      <button class="btn btn-secondary" onclick="exportData()" title="Baixar Backup">📥 Exportar</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" title="Carregar Backup">📤 Importar</button>
+      <button class="btn btn-secondary" onclick="exportData()" title="Baixar Backup do Jardim">📥 Exportar Backup</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" title="Carregar Backup do Jardim">📤 Importar Backup</button>
       <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)" />
       <button class="btn btn-secondary" onclick="requestNotificationPermission()">🔔 Notificações</button>
       <button class="btn btn-secondary" id="btn-back" onclick="showHomeScreen()" style="display: none;">⬅️ Voltar</button>
@@ -755,7 +756,12 @@
       <div class="flashcards-container">
         <div class="flashcards-header">
           <h3 style="font-size: 1rem; color: var(--primary);">🎴 Flashcards <span id="card-counter" style="font-size:0.8rem; color:var(--subtext)">(0)</span></h3>
-          <button class="btn-card primary" id="btn-novo-card" onclick="iniciarCriacaoFlashcard()">+ Novo Flashcard</button>
+          <div class="flashcards-actions-group">
+            <button class="btn-card" onclick="exportFlashcards()" title="Exportar Flashcards deste Tópico">📥 Exp</button>
+            <button class="btn-card" onclick="document.getElementById('import-flashcards-file').click()" title="Importar Flashcards para este Tópico">📤 Imp</button>
+            <input type="file" id="import-flashcards-file" style="display: none;" accept=".json" onchange="importFlashcards(event)" />
+            <button class="btn-card primary" id="btn-novo-card" onclick="iniciarCriacaoFlashcard()">+ Novo</button>
+          </div>
         </div>
         <div id="editor-container" style="display: none;"></div>
         <div class="flashcards-scroll-container" id="flashcards-scroll-container"></div>
@@ -859,7 +865,7 @@
       localStorage.setItem('gardens_data', JSON.stringify(gardens));
     }
 
-    /* EXPORTAR E IMPORTAR DADOS (Sincronização Local <-> GitHub) */
+    /* EXPORTAR E IMPORTAR DADOS GERAIS */
     function exportData() {
       if (gardens.length === 0) {
         alert('Não há dados de jardim para exportar.');
@@ -902,7 +908,7 @@
         }
       };
       reader.readAsText(file);
-      event.target.value = ''; // reseta o input
+      event.target.value = '';
     }
 
     function initTheme() {
@@ -1445,6 +1451,81 @@
     function cancelarEditorFlashcard() {
       modoCriacaoFlashcard = false;
       renderFlashcards();
+    }
+
+    /* --- EXPORTAÇÃO E IMPORTAÇÃO DE FLASHCARDS DO TÓPICO --- */
+    function exportFlashcards() {
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden ? garden.topics.find(t => t.id === selectedTopicId) : null;
+
+      if (!topic || !topic.flashcards || topic.flashcards.length === 0) {
+        alert("Não há flashcards neste tópico para exportar.");
+        return;
+      }
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(topic.flashcards, null, 2));
+      const downloadAnchor = document.createElement('a');
+      const safeTitle = topic.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `flashcards_${safeTitle}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importFlashcards(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const garden = gardens.find(g => g.id === currentGardenId);
+      const topic = garden ? garden.topics.find(t => t.id === selectedTopicId) : null;
+
+      if (!topic) {
+        alert("Erro: Tópico não encontrado.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedCards = JSON.parse(e.target.result);
+
+          if (!Array.isArray(importedCards)) {
+            alert("O arquivo de flashcards deve ser um formato JSON válido contendo uma lista.");
+            return;
+          }
+
+          // Validação básica do formato
+          const isValid = importedCards.every(card => card && typeof card.pergunta === 'string' && typeof card.resposta === 'string');
+          if (!isValid) {
+            alert("O arquivo JSON não possui o formato esperado de flashcards ({ pergunta, resposta }).");
+            return;
+          }
+
+          if (!topic.flashcards) topic.flashcards = [];
+
+          let replace = false;
+          if (topic.flashcards.length > 0) {
+            replace = confirm(`Este tópico já possui ${topic.flashcards.length} flashcard(s).\n\nClique em 'OK' para SUBSTIUIR os flashcards existentes.\nClique em 'Cancelar' para ADICIONAR os novos flashcards à lista atual.`);
+          }
+
+          if (replace) {
+            topic.flashcards = importedCards;
+          } else {
+            topic.flashcards = topic.flashcards.concat(importedCards);
+          }
+
+          saveStorage();
+          renderFlashcards();
+          alert(`Sucesso! ${importedCards.length} flashcard(s) importado(s).`);
+
+        } catch (err) {
+          alert("Erro ao ler o arquivo JSON: " + err.message);
+        }
+      };
+
+      reader.readAsText(file);
+      event.target.value = ''; // Reseta o input de arquivo
     }
 
     /* --- UTILITÁRIOS --- */
