@@ -227,7 +227,7 @@
       box-shadow: 0 6px 12px rgba(0,0,0,0.2);
     }
 
-    /* CORES DE ATRAZO DAS PLANTAS (MODO DE CORES) */
+    /* CORES DE ATRASO / REVISÃO DAS PLANTAS */
     .plant-card.status-green {
       background-color: #d4edda !important;
       border: 2px solid #2e7d32 !important;
@@ -621,10 +621,7 @@
       font-weight: 600;
     }
     
-    /* ==========================================
-   OTIMIZAÇÕES DE RESPONSIVIDADE MOBILE 
-   ========================================== */
-
+    /* OTIMIZAÇÕES DE RESPONSIVIDADE MOBILE */
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -710,7 +707,6 @@
         font-size: 0.8rem;
       }
     }
-    
   </style>
 </head>
 <body>
@@ -864,7 +860,7 @@
     let currentGardenId = null;
     let selectedTopicId = null;
     let modoCriacaoFlashcard = false;
-    let highlightOverdueColors = false; // Controle de destaque por cores
+    let highlightOverdueColors = false;
 
     const SPECIES_LOOKUP = {
       sunflower: { name: 'Girassol', seed: '🌱', small: '🌱', medium: '🌿', large: '🌻', bloom: '🌻✨', wilted: '🥀' },
@@ -903,13 +899,31 @@
       return Math.floor(diffTime / (1000 * 60 * 60 * 24));
     }
 
-    /* RETORNA A CATEGORIA/COR BASEADA NOS DIAS DE ATRASO */
+    /* VERIFICA SE A REVISÃO DA PLANTA É EXATAMENTE HOJE (SEM ESTAR EM ATRASO) */
+    function isTodayForReview(topic) {
+      if (!topic.nextReview) return false;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const reviewDate = new Date(topic.nextReview);
+      const targetDate = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
+
+      return today.getTime() === targetDate.getTime();
+    }
+
+    /* RETORNA A CATEGORIA/COR BASEADA NOS DIAS DE ATRASO E REVISÃO HOJE */
     function getOverdueStatus(topic) {
       const days = calculateOverdueDays(topic);
-      if (days <= 0) return 'green';      // Em dia (sem revisão pendente)
-      if (days >= 1 && days <= 3) return 'yellow';  // Atraso de 1 a 3 dias
-      if (days >= 4 && days <= 7) return 'orange';  // Atraso de 4 a 7 dias
-      return 'red';                       // Atraso de 8 a 10+ dias
+
+      if (days === 0) {
+        if (isTodayForReview(topic)) {
+          return 'green';
+        }
+        return 'none';
+      }
+
+      if (days >= 1 && days <= 3) return 'yellow';
+      if (days >= 4 && days <= 7) return 'orange';
+      return 'red';
     }
 
     /* LÓGICA DE SEQUÊNCIA DE REVISÃO CUSTOMIZADA */
@@ -1101,8 +1115,11 @@
       highlightOverdueColors = true;
       window.focus();
 
-      // Encontra um jardim com plantas pendentes ou abre o primeiro jardim disponível
-      let targetGarden = gardens.find(g => g.topics.some(t => calculateOverdueDays(t) > 0));
+      let targetGarden = gardens.find(g => g.topics.some(t => {
+        const st = getOverdueStatus(t);
+        return st !== 'none';
+      }));
+      
       if (!targetGarden && gardens.length > 0) {
         targetGarden = gardens[0];
       }
@@ -1229,7 +1246,6 @@
       const container = document.getElementById('garden-plants');
       container.innerHTML = '';
 
-      // Se o destaque por cores estiver ativado, desenha a barra explicativa no topo
       if (highlightOverdueColors) {
         const legendBanner = document.createElement('div');
         legendBanner.className = 'color-legend-banner';
@@ -1240,7 +1256,7 @@
           </div>
           <div class="legend-items-grid">
             <div class="legend-item-pill" style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
-              🟢 Verde: Em dia (Sem revisão em atraso)
+              🟢 Verde: Precisa de revisão hoje (Sem atraso)
             </div>
             <div class="legend-item-pill" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba;">
               🟡 Amarelo: 1 a 3 dias de atraso
@@ -1269,7 +1285,9 @@
         
         if (highlightOverdueColors) {
           const status = getOverdueStatus(topic);
-          card.classList.add(`status-${status}`);
+          if (status !== 'none') {
+            card.classList.add(`status-${status}`);
+          }
         }
 
         card.onclick = () => openCareModal(topic.id);
@@ -1729,23 +1747,19 @@
         });
       });
 
-      const totalPending = yellowCount + orangeCount + redCount;
+      const totalPending = greenCount + yellowCount + orangeCount + redCount;
+      const overdueCount = yellowCount + orangeCount + redCount;
 
       if (totalPending > 0 || manualTrigger) {
-        const notificationTitle = `⚠️ Revisões Pendentes (${totalPending} planta${totalPending !== 1 ? 's' : ''})`;
+        const notificationTitle = `⚠️ Revisões do Dia (${totalPending} planta${totalPending !== 1 ? 's' : ''})`;
         
         const notificationBody = 
-          `📋 Plantas precisando de revisão: ${totalPending}\n\n` +
+          `📋 Plantas com revisão em atraso: ${overdueCount}\n\n` +
+          `🟢 Revisão para hoje (Verde): ${greenCount}\n` +
           `🟡 1 a 3 dias de atraso (Amarelo): ${yellowCount}\n` +
           `🟠 4 a 7 dias de atraso (Laranja): ${orangeCount}\n` +
-          `🔴 8 a 10+ dias de atraso (Vermelho): ${redCount}\n` +
-          `🟢 Em dia (Verde): ${greenCount}\n\n` +
-          `💡 Legenda:\n` +
-          `• Verde: Em dia\n` +
-          `• Amarelo: Atraso leve (1-3d)\n` +
-          `• Laranja: Atraso moderado (4-7d)\n` +
-          `• Vermelho: Atraso crítico (8-10+d)\n\n` +
-          `Clique para ver o destaque por cores!`;
+          `🔴 8 a 10+ dias de atraso (Vermelho): ${redCount}\n\n` +
+          `Clique para ver o destaque no jardim!`;
 
         if ("Notification" in window && Notification.permission === "granted") {
           const notification = new Notification(notificationTitle, {
