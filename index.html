@@ -218,13 +218,68 @@
       text-align: center;
       cursor: pointer;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+      transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s, border-color 0.3s;
       position: relative;
     }
 
     .plant-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    }
+
+    /* CORES DE ATRAZO DAS PLANTAS (MODO DE CORES) */
+    .plant-card.status-green {
+      background-color: #d4edda !important;
+      border: 2px solid #2e7d32 !important;
+      color: #155724 !important;
+    }
+    .plant-card.status-yellow {
+      background-color: #fff3cd !important;
+      border: 2px solid #fbc02d !important;
+      color: #856404 !important;
+    }
+    .plant-card.status-orange {
+      background-color: #ffe8cc !important;
+      border: 2px solid #f57c00 !important;
+      color: #8c3200 !important;
+    }
+    .plant-card.status-red {
+      background-color: #f8d7da !important;
+      border: 2px solid #e53935 !important;
+      color: #721c24 !important;
+    }
+
+    body.dark-mode .plant-card.status-green {
+      background-color: #1b4d24 !important;
+      border: 2px solid #4caf50 !important;
+      color: #e0f2e9 !important;
+    }
+    body.dark-mode .plant-card.status-yellow {
+      background-color: #5c4d00 !important;
+      border: 2px solid #fbc02d !important;
+      color: #fff9c4 !important;
+    }
+    body.dark-mode .plant-card.status-orange {
+      background-color: #6e3b00 !important;
+      border: 2px solid #f57c00 !important;
+      color: #ffe0b2 !important;
+    }
+    body.dark-mode .plant-card.status-red {
+      background-color: #611a15 !important;
+      border: 2px solid #e53935 !important;
+      color: #ffcdd2 !important;
+    }
+
+    .plant-card.status-green .plant-discipline,
+    .plant-card.status-yellow .plant-discipline,
+    .plant-card.status-orange .plant-discipline,
+    .plant-card.status-red .plant-discipline,
+    .plant-card.status-green .bar-label,
+    .plant-card.status-yellow .bar-label,
+    .plant-card.status-orange .bar-label,
+    .plant-card.status-red .bar-label {
+      color: inherit !important;
+      opacity: 0.9;
     }
 
     .plant-icon {
@@ -535,6 +590,36 @@
     .btn-card.danger {
       background: var(--danger);
     }
+
+    /* Painel de Legenda de Cores de Atraso */
+    .color-legend-banner {
+      grid-column: 1 / -1;
+      background: var(--card-bg);
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .legend-items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      font-size: 0.82rem;
+    }
+
+    .legend-item-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
     
     /* ==========================================
    OTIMIZAÇÕES DE RESPONSIVIDADE MOBILE 
@@ -779,6 +864,7 @@
     let currentGardenId = null;
     let selectedTopicId = null;
     let modoCriacaoFlashcard = false;
+    let highlightOverdueColors = false; // Controle de destaque por cores
 
     const SPECIES_LOOKUP = {
       sunflower: { name: 'Girassol', seed: '🌱', small: '🌱', medium: '🌿', large: '🌻', bloom: '🌻✨', wilted: '🥀' },
@@ -802,6 +888,29 @@
       frequent: '+1/+3/+7/+15d...',
       weekly: '+7/+7/+7/+7d...'
     };
+
+    /* CÁLCULO DE DIAS DE ATRASO DE UMA PLANTA */
+    function calculateOverdueDays(topic) {
+      if (!topic.nextReview) return 0;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const reviewDate = new Date(topic.nextReview);
+      const targetDate = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
+
+      if (today <= targetDate) return 0;
+
+      const diffTime = today - targetDate;
+      return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    /* RETORNA A CATEGORIA/COR BASEADA NOS DIAS DE ATRASO */
+    function getOverdueStatus(topic) {
+      const days = calculateOverdueDays(topic);
+      if (days <= 0) return 'green';      // Em dia (sem revisão pendente)
+      if (days >= 1 && days <= 3) return 'yellow';  // Atraso de 1 a 3 dias
+      if (days >= 4 && days <= 7) return 'orange';  // Atraso de 4 a 7 dias
+      return 'red';                       // Atraso de 8 a 10+ dias
+    }
 
     /* LÓGICA DE SEQUÊNCIA DE REVISÃO CUSTOMIZADA */
     function getNextCareStage(careCount, cycleType = 'standard') {
@@ -926,21 +1035,14 @@
     }
 
     function calculateDecayAll() {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
       gardens.forEach(g => {
         g.topics.forEach(topic => {
-          const reviewDate = new Date(topic.nextReview);
-          const targetDate = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
+          const daysOverdue = calculateOverdueDays(topic);
 
-          if (today <= targetDate) {
+          if (daysOverdue <= 0) {
             topic.daysOverdueApplied = 0;
             return;
           }
-
-          const diffTime = today - targetDate;
-          const daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
           if (typeof topic.daysOverdueApplied !== 'number') {
             topic.daysOverdueApplied = 0;
@@ -991,6 +1093,29 @@
       btnPrimary.innerText = '＋ Novo Tópico';
       btnPrimary.onclick = openAddTopicModal;
 
+      renderGardenPlants();
+    }
+
+    /* --- ACTIVAR MODO DE CORES POR NOTIFICAÇÃO --- */
+    function triggerHighlightMode() {
+      highlightOverdueColors = true;
+      window.focus();
+
+      // Encontra um jardim com plantas pendentes ou abre o primeiro jardim disponível
+      let targetGarden = gardens.find(g => g.topics.some(t => calculateOverdueDays(t) > 0));
+      if (!targetGarden && gardens.length > 0) {
+        targetGarden = gardens[0];
+      }
+
+      if (targetGarden) {
+        enterGarden(targetGarden.id);
+      } else {
+        renderHomeScreen();
+      }
+    }
+
+    function disableHighlightMode() {
+      highlightOverdueColors = false;
       renderGardenPlants();
     }
 
@@ -1104,8 +1229,35 @@
       const container = document.getElementById('garden-plants');
       container.innerHTML = '';
 
+      // Se o destaque por cores estiver ativado, desenha a barra explicativa no topo
+      if (highlightOverdueColors) {
+        const legendBanner = document.createElement('div');
+        legendBanner.className = 'color-legend-banner';
+        legendBanner.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <strong style="color: var(--primary); font-size: 0.95rem;">🎨 Modo de Destaque por Atraso Ativo</strong>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="disableHighlightMode()">Desativar Cores</button>
+          </div>
+          <div class="legend-items-grid">
+            <div class="legend-item-pill" style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+              🟢 Verde: Em dia (Sem revisão em atraso)
+            </div>
+            <div class="legend-item-pill" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba;">
+              🟡 Amarelo: 1 a 3 dias de atraso
+            </div>
+            <div class="legend-item-pill" style="background: #ffe8cc; color: #8c3200; border: 1px solid #ffd8a8;">
+              🟠 Laranja: 4 a 7 dias de atraso
+            </div>
+            <div class="legend-item-pill" style="background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">
+              🔴 Vermelho: 8 a 10+ dias de atraso
+            </div>
+          </div>
+        `;
+        container.appendChild(legendBanner);
+      }
+
       if (garden.topics.length === 0) {
-        container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--subtext); margin-top: 50px;">
+        container.innerHTML += `<p style="grid-column: 1/-1; text-align: center; color: var(--subtext); margin-top: 50px;">
           Este jardim está vazio. Clique em "Novo Tópico" para começar a cultivar!
         </p>`;
         return;
@@ -1114,6 +1266,12 @@
       garden.topics.forEach(topic => {
         const card = document.createElement('div');
         card.className = 'plant-card';
+        
+        if (highlightOverdueColors) {
+          const status = getOverdueStatus(topic);
+          card.classList.add(`status-${status}`);
+        }
+
         card.onclick = () => openCareModal(topic.id);
 
         const icon = getPlantAppearance(topic);
@@ -1495,7 +1653,6 @@
             return;
           }
 
-          // Validação básica do formato
           const isValid = importedCards.every(card => card && typeof card.pergunta === 'string' && typeof card.resposta === 'string');
           if (!isValid) {
             alert("O arquivo JSON não possui o formato esperado de flashcards ({ pergunta, resposta }).");
@@ -1525,10 +1682,10 @@
       };
 
       reader.readAsText(file);
-      event.target.value = ''; // Reseta o input de arquivo
+      event.target.value = '';
     }
 
-    /* --- UTILITÁRIOS --- */
+    /* --- UTILITÁRIOS E SISTEMA DE NOTIFICAÇÕES --- */
     function closeModal(modalId) {
       document.getElementById(modalId).classList.remove('active');
     }
@@ -1542,36 +1699,66 @@
 
     function requestNotificationPermission() {
       if (!("Notification" in window)) {
-        alert("Navegador não suporta notificações.");
+        alert("Seu navegador não suporta notificações.");
         return;
       }
 
       Notification.requestPermission().then(permission => {
         if (permission === "granted") {
-          alert("Notificações ativadas!");
-          checkNotifications();
+          alert("Notificações ativadas com sucesso!");
+          checkNotifications(true);
+        } else {
+          alert("A permissão para notificações foi negada.");
         }
       });
     }
 
-    function checkNotifications() {
-      if (Notification.permission === "granted") {
-        const now = new Date();
-        let pendingCount = 0;
+    function checkNotifications(manualTrigger = false) {
+      let greenCount = 0;
+      let yellowCount = 0;
+      let orangeCount = 0;
+      let redCount = 0;
 
-        gardens.forEach(g => {
-          g.topics.forEach(t => {
-            if (new Date(t.nextReview) <= now || t.health < 40) {
-              pendingCount++;
-            }
-          });
+      gardens.forEach(g => {
+        g.topics.forEach(t => {
+          const status = getOverdueStatus(t);
+          if (status === 'green') greenCount++;
+          else if (status === 'yellow') yellowCount++;
+          else if (status === 'orange') orangeCount++;
+          else if (status === 'red') redCount++;
         });
+      });
 
-        if (pendingCount > 0) {
-          new Notification("🌱 Jardim do Conhecimento", {
-            body: `Você tem ${pendingCount} tópico(s) precisando de atenção ou revisão!`,
+      const totalPending = yellowCount + orangeCount + redCount;
+
+      if (totalPending > 0 || manualTrigger) {
+        const notificationTitle = `⚠️ Revisões Pendentes (${totalPending} planta${totalPending !== 1 ? 's' : ''})`;
+        
+        const notificationBody = 
+          `📋 Plantas precisando de revisão: ${totalPending}\n\n` +
+          `🟡 1 a 3 dias de atraso (Amarelo): ${yellowCount}\n` +
+          `🟠 4 a 7 dias de atraso (Laranja): ${orangeCount}\n` +
+          `🔴 8 a 10+ dias de atraso (Vermelho): ${redCount}\n` +
+          `🟢 Em dia (Verde): ${greenCount}\n\n` +
+          `💡 Legenda:\n` +
+          `• Verde: Em dia\n` +
+          `• Amarelo: Atraso leve (1-3d)\n` +
+          `• Laranja: Atraso moderado (4-7d)\n` +
+          `• Vermelho: Atraso crítico (8-10+d)\n\n` +
+          `Clique para ver o destaque por cores!`;
+
+        if ("Notification" in window && Notification.permission === "granted") {
+          const notification = new Notification(notificationTitle, {
+            body: notificationBody,
             icon: "🌱"
           });
+
+          notification.onclick = function() {
+            triggerHighlightMode();
+          };
+        } else if (manualTrigger) {
+          alert(notificationTitle + "\n\n" + notificationBody);
+          triggerHighlightMode();
         }
       }
     }
